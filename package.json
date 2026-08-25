@@ -1,0 +1,28 @@
+{
+  "name": "x402-video-example",
+  "version": "1.0.0",
+  "description": "Buy an AI-generated video over x402: a wallet pays the 402 challenge in USDC on Base, no account or API key.",
+  "type": "module",
+  "scripts": {
+    "buy": "tsx buy-video.ts"
+  },
+  "keywords": [
+    "x402",
+    "video-generation",
+    "ai-video",
+    "usdc",
+    "base",
+    "agent-payments",
+    "micropayments"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@x402/evm": "^2.23.0",
+    "@x402/fetch": "^2.23.0",
+    "dotenv": "^16.4.5",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}
