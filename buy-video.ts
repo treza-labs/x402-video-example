@@ -3,7 +3,7 @@
  *
  * The flow:
  *   1. POST a prompt to the endpoint. Unpaid, it answers 402 with the exact
- *      USDC price for the clip length you asked for.
+ *      USDC price for the clip length and model you asked for.
  *   2. @x402/fetch signs the payment with your wallet and retries the request.
  *   3. The paid POST answers 202 with a status URL carrying a signed claim
  *      ticket. That ticket is the proof of purchase.
@@ -27,6 +27,10 @@ const ENDPOINT =
   process.env.X402_VIDEO_ENDPOINT ?? "https://www.trezalabs.com/api/x402/video";
 const SECONDS = Number(process.env.CLIP_SECONDS ?? 5); // 5, 10, or 15
 const ASPECT = process.env.CLIP_ASPECT ?? "16:9"; // 16:9 or 9:16
+// minimax-h3 (the default: cheap, sharp, rarely refuses) or seedance-2.5
+// (about 4x the price, stricter content filter). GET the endpoint with no
+// parameters for the current list and each model's prices.
+const MODEL = process.env.CLIP_MODEL ?? "minimax-h3";
 
 const prompt =
   process.argv.slice(2).join(" ") ||
@@ -44,19 +48,20 @@ if (!key) {
 const account = privateKeyToAccount(key as `0x${string}`);
 const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
   schemes: [{ network: "eip155:8453", client: new ExactEvmScheme(account) }],
-  // The SDK's default spend control caps payments at $1, below the cheapest
-  // clip ($1.64). $5 covers every size on offer while still bounding what a
-  // bug in this script could ever spend in one payment.
+  // The SDK's default spend control caps payments at $1, which silently
+  // rejects any clip priced above it: the 15s default clip ($1.26) and every
+  // Seedance clip ($1.64 to $4.90). $5 covers every offer while still bounding
+  // what a bug in this script could ever spend in one payment.
   spendControls: { maxAmountPerPayment: "$5" },
 });
 
 async function main() {
-  console.log(`Buying a ${SECONDS}s ${ASPECT} clip for: "${prompt}"`);
+  console.log(`Buying a ${SECONDS}s ${ASPECT} clip on ${MODEL} for: "${prompt}"`);
 
   const res = await fetchWithPayment(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, seconds: SECONDS, aspectRatio: ASPECT }),
+    body: JSON.stringify({ prompt, seconds: SECONDS, aspectRatio: ASPECT, model: MODEL }),
   });
   const order = await res.json();
   if (!res.ok) {
