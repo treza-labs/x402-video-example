@@ -1,10 +1,10 @@
 # Buy an AI video with x402
 
-A minimal buyer script for [Treza's](https://www.trezalabs.com/x402) pay-per-video endpoint: POST a prompt, let your wallet pay the HTTP 402 challenge in USDC on Base, and download the finished video. No account, no API key, no signup. The payment is the only credential.
+A minimal buyer script for [Treza's](https://www.trezalabs.com/x402) pay-per-video endpoint: POST a prompt, let your wallet pay the HTTP 402 challenge in USDC on Base or Solana, and download the finished video. No account, no API key, no signup. The payment is the only credential.
 
 ```
 npm install
-cp .env.example .env    # add a Base wallet key holding a few USDC
+cp .env.example .env    # add a Base or a Solana wallet key holding a few USDC
 npm run buy -- "a hedgehog wandering through a neon-lit alley at night"
 ```
 
@@ -31,15 +31,25 @@ In 16:9 or 9:16, set via `CLIP_SECONDS`, `CLIP_ASPECT` and `CLIP_MODEL` in `.env
 
 To animate your own image, set `CLIP_IMAGE_URL` to a public https JPEG, PNG or WebP of up to 10 MB. The script sends it as `image_url`, and the video starts from it, cropped to `CLIP_ASPECT`. Leave `CLIP_MODEL` unset and the cheapest model that takes an image at your length renders it: `wan-2.7` for 5 or 10 seconds, `kling-3.0` for 15, and `veo-3.1-lite` for 4, 6, 8 or no length, and the 402 quotes that model's price. Any model except `minimax-h3` can be named instead. The image is checked before the payment settles, so one that cannot be used costs nothing.
 
-Payments are EIP-3009 `transferWithAuthorization`, so the wallet needs USDC but no ETH for gas.
+## Paying on Base or Solana
+
+The endpoint's 402 challenge lists the same price twice: USDC on Base first, then USDC on Solana. The script pays from whichever wallet you give it in `.env`:
+
+| Variable | Wallet | Notes |
+| -------- | ------ | ----- |
+| `PRIVATE_KEY` | Base | A `0x` private key holding USDC on Base. Payments are EIP-3009 `transferWithAuthorization`, so no ETH is needed for gas |
+| `SOLANA_PRIVATE_KEY` | Solana | The base58 64-byte secret key, as Phantom and most Solana wallets export it, holding USDC on Solana. No SOL is needed: the facilitator pays the network fee. When set, it is used instead of `PRIVATE_KEY` |
+| `SOLANA_RPC_URL` | Solana | Optional. A Solana mainnet RPC for the client to read the USDC mint from; the public endpoint is used when unset |
+
+Either way the wallet needs USDC on the chain it pays from, and nothing else. Use a small, dedicated hot wallet, never a main one. Paid on Solana, the response's `transaction` is a base58 signature rather than a `0x` hash. A Base wallet and a Solana wallet are separate accounts on Treza, so credit left on one is not visible to the other.
 
 One gotcha worth knowing: `@x402/fetch` ships with a default spend control that caps any single payment at $1, which silently rejects many clips (the 15-second default clip, and most clips on the other models). The script raises the cap to $5 via `spendControls: { maxAmountPerPayment: "$5" }`, which covers the largest clip ($4.90) while still bounding what one payment can ever spend.
 
 ## How the flow works
 
 1. The script POSTs `{"prompt", "aspectRatio"}`, plus `"seconds"`, `"model"` and `"image_url"` when `CLIP_SECONDS`, `CLIP_MODEL` and `CLIP_IMAGE_URL` are set, to `https://www.trezalabs.com/api/x402/video`.
-2. The server answers `402 Payment Required` with structured payment requirements: the exact price for that clip on that model, USDC on Base, and the address to pay.
-3. [`@x402/fetch`](https://www.npmjs.com/package/@x402/fetch) signs the payment with the wallet and retries the request. The payment verifies and settles on-chain before the render starts.
+2. The server answers `402 Payment Required` with structured payment requirements: the exact price for that clip on that model, in USDC on Base and on Solana, and the address to pay on each.
+3. [`@x402/fetch`](https://www.npmjs.com/package/@x402/fetch) signs the payment with the wallet (through `@x402/evm` for Base, or `@x402/svm` for Solana) and retries the request. The payment verifies and settles on-chain before the render starts.
 4. The paid POST answers `200` at once with an `X-Status-Url` header carrying a signed claim ticket, the proof of purchase (persist it in a real integration), sends a whitespace byte every 2 seconds while it waits, which JSON parsers ignore, and ends with one JSON object. When the render finishes within 45 seconds, `status` is `success` and the body carries the `video` URL; `error` or `partial` carries a `retryUrl` that renders again without paying twice.
 5. When the render takes longer, the body says `"status": "running"`, and the script polls the `statusUrl` (free, the render is already paid for) until it finishes. Then it downloads the file, using the `video` URL exactly as given.
 
