@@ -5,10 +5,14 @@
  *   1. POST a prompt to the endpoint. Unpaid, it answers 402 with the exact
  *      USDC price for the clip length and model you asked for.
  *   2. @x402/fetch signs the payment with your wallet and retries the request.
- *   3. The paid POST answers 202 with a status URL carrying a signed claim
- *      ticket. That ticket is the proof of purchase.
- *   4. Poll the status URL (free, the render is already paid for) until the
- *      video URL appears, then download the file.
+ *   3. The paid POST returns the video URL in the same response when the
+ *      render finishes within 45 seconds. It answers 200 at once (the
+ *      X-Status-Url header carries a status URL with a signed claim ticket, the
+ *      proof of purchase), sends a whitespace byte every 2 seconds while it
+ *      waits, then one JSON object. Read `status` in that body.
+ *   4. If the render takes longer (status "running"), poll the status URL
+ *      (free, the render is already paid for) until it finishes.
+ *   5. Download the file.
  *
  * Usage:
  *   cp .env.example .env   # add a Base wallet key holding a few USDC
@@ -25,12 +29,27 @@ config();
 
 const ENDPOINT =
   process.env.X402_VIDEO_ENDPOINT ?? "https://www.trezalabs.com/api/x402/video";
-const SECONDS = Number(process.env.CLIP_SECONDS ?? 5); // 5, 10, or 15
+// Model and length are only sent when set, so the endpoint picks its own
+// defaults: minimax-h3 at its shortest length, or, with CLIP_IMAGE_URL, the
+// cheapest model that takes an image at the length you ask for.
+//
+// Clip length. Each model sells its own: 5, 10 or 15 on minimax-h3,
+// kling-3.0, kling-3.0-pro and seedance-2.5; 4, 6 or 8 on the three Veo
+// models; 5 or 10 on wan-2.7.
+const SECONDS = process.env.CLIP_SECONDS?.trim()
+  ? Number(process.env.CLIP_SECONDS)
+  : undefined;
 const ASPECT = process.env.CLIP_ASPECT ?? "16:9"; // 16:9 or 9:16
-// minimax-h3 (the default: cheap, sharp, rarely refuses) or seedance-2.5
-// (about 4x the price, stricter content filter). GET the endpoint with no
-// parameters for the current list and each model's prices.
-const MODEL = process.env.CLIP_MODEL ?? "minimax-h3";
+// minimax-h3 (the default: cheap, sharp, rarely refuses, text only),
+// veo-3.1-lite, wan-2.7, veo-3.1-fast, kling-3.0, kling-3.0-pro, seedance-2.5
+// or veo-3.1. GET the endpoint with no parameters for what each one is for
+// and its prices.
+const MODEL = process.env.CLIP_MODEL?.trim() || undefined;
+// Optional first frame: a public https JPEG, PNG or WebP up to 10 MB, cropped
+// to CLIP_ASPECT. Every model except minimax-h3 takes one. Leave CLIP_MODEL
+// unset and the cheapest model that takes an image at CLIP_SECONDS renders
+// it: wan-2.7 for 5 or 10, kling-3.0 for 15, veo-3.1-lite otherwise.
+const IMAGE_URL = process.env.CLIP_IMAGE_URL?.trim() || undefined;
 
 const prompt =
   process.argv.slice(2).join(" ") ||
@@ -49,45 +68,69 @@ const account = privateKeyToAccount(key as `0x${string}`);
 const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
   schemes: [{ network: "eip155:8453", client: new ExactEvmScheme(account) }],
   // The SDK's default spend control caps payments at $1, which silently
-  // rejects any clip priced above it: the 15s default clip ($1.26) and every
-  // Seedance clip ($1.64 to $4.90). $5 covers every offer while still bounding
+  // rejects many clips: the 15s default clip ($1.26) and most clips on the
+  // other models (up to $4.90). $5 covers every offer while still bounding
   // what a bug in this script could ever spend in one payment.
   spendControls: { maxAmountPerPayment: "$5" },
 });
 
 async function main() {
-  console.log(`Buying a ${SECONDS}s ${ASPECT} clip on ${MODEL} for: "${prompt}"`);
+  console.log(
+    `Buying a ${SECONDS ? `${SECONDS}s` : "default-length"} ${ASPECT} clip on ${MODEL ?? "the default model"}${
+      IMAGE_URL ? ` from ${IMAGE_URL}` : ""
+    } for: "${prompt}"`
+  );
 
   const res = await fetchWithPayment(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, seconds: SECONDS, aspectRatio: ASPECT, model: MODEL }),
+    body: JSON.stringify({
+      prompt,
+      aspectRatio: ASPECT,
+      ...(SECONDS !== undefined ? { seconds: SECONDS } : {}),
+      ...(MODEL ? { model: MODEL } : {}),
+      ...(IMAGE_URL ? { image_url: IMAGE_URL } : {}),
+    }),
   });
-  const order = await res.json();
   if (!res.ok) {
-    throw new Error(`Purchase failed (${res.status}): ${JSON.stringify(order)}`);
+    throw new Error(`Purchase failed (${res.status}): ${await res.text()}`);
   }
 
-  console.log(
-    `Paid $${order.paidUsd} USDC on Base (tx ${order.transaction}).`
-  );
-  console.log(`Run ${order.runId} is rendering; polling the claim ticket...`);
-
   // The status URL embeds a signed ticket: it is the only credential that can
-  // claim this video, so in a real integration you would persist it.
+  // claim this video, so in a real integration you would persist it. It
+  // arrives in this header before the render has finished.
+  const statusUrl = res.headers.get("x-status-url");
+  if (statusUrl) console.log(`Paid. Claim ticket: ${statusUrl}`);
+  console.log("Waiting up to 45 seconds for the render...");
+
+  // The body completes when the render does, or after 45 seconds with status
+  // "running". Leading whitespace (the keepalive bytes) is ignored by the JSON
+  // parser.
+  const order = await res.json();
+  console.log(
+    `Paid $${order.paidUsd} USDC on Base for ${order.seconds}s on ${order.model} (tx ${order.transaction}).`
+  );
+
+  // The render is taking longer than the wait: poll the claim ticket.
   let status = order;
   while (status.status === "running") {
+    console.log(`Run ${order.runId} is still rendering; polling the claim ticket...`);
     await new Promise((r) => setTimeout(r, status.pollAfterMs ?? 15_000));
     status = await (await fetch(order.statusUrl)).json();
     console.log(`  status: ${status.status}`);
   }
 
   if (!status.video) {
+    // Nothing was charged for a failed render: the payment stays on the
+    // wallet's balance, and retryUrl renders again without paying twice.
     throw new Error(
-      `Run finished as "${status.status}" with no video URL: ${JSON.stringify(status)}`
+      `Run finished as "${status.status}" with no video. ${status.message ?? ""} ${
+        status.retryUrl ? `Retry at ${status.retryUrl}` : JSON.stringify(status)
+      }`
     );
   }
 
+  // Use the URL exactly as given, query parameters included.
   const file = "video.mp4";
   const media = await fetch(status.video);
   await writeFile(file, Buffer.from(await media.arrayBuffer()));

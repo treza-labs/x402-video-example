@@ -8,31 +8,40 @@ cp .env.example .env    # add a Base wallet key holding a few USDC
 npm run buy -- "a hedgehog wandering through a neon-lit alley at night"
 ```
 
-A couple of minutes later there is a `video.mp4` in the working directory.
+The paid request returns the video in the same response when the render finishes within 45 seconds; otherwise the script polls the status URL it got back until the video is ready. Either way, when the script exits there is a `video.mp4` in the working directory.
 
 ## What it costs
 
-Price scales with clip length and the model, and is quoted per request by the 402 challenge itself, before any money moves:
+Price scales with clip length and the model, and is quoted per request by the 402 challenge itself, before any money moves. Each model sells its own lengths:
 
-| Clip | `minimax-h3` (default) | `seedance-2.5` |
-| ---- | ---------------------- | -------------- |
-| 5 seconds | $0.42 | $1.64 |
-| 10 seconds | $0.84 | $3.27 |
-| 15 seconds | $1.26 | $4.90 |
+| `CLIP_MODEL` | Prices (USDC) |
+| ------------ | ------------- |
+| `minimax-h3` (default) | 5 s $0.42, 10 s $0.84, 15 s $1.26 |
+| `veo-3.1-lite` | 4 s $0.45, 6 s $0.68, 8 s $0.90 |
+| `wan-2.7` | 5 s $0.70, 10 s $1.40 |
+| `veo-3.1-fast` | 4 s $0.68, 6 s $1.01, 8 s $1.35 |
+| `kling-3.0` | 5 s $0.89, 10 s $1.77, 15 s $2.65 |
+| `kling-3.0-pro` | 5 s $1.18, 10 s $2.36, 15 s $3.53 |
+| `seedance-2.5` | 5 s $1.64, 10 s $3.27, 15 s $4.90 |
+| `veo-3.1` | 4 s $2.24, 6 s $3.36, 8 s $4.48 |
 
-In 16:9 or 9:16, set via `CLIP_SECONDS`, `CLIP_ASPECT` and `CLIP_MODEL` in `.env`. Hailuo 3 is the default: sharp, cheap, and it refuses very few prompts. Seedance 2.5 costs about four times as much and has a strict content filter (prompts that resemble a brand, a broadcast, or a famous scene are refused; a refusal is not charged, and the status response carries a `retryUrl` that renders a reworded prompt without paying again). The rates derive from measured provider cost, so they move when a model's price moves. Current models and prices always come from the endpoint itself: `GET` it with no parameters for the offer list, or `curl -X POST` it with your prompt and no payment, and the 402 response quotes the exact price for what you asked. Only `prompt`, `seconds`, `aspectRatio` and `model` are read; any other field is refused with a 400 before payment, so nothing you send is silently ignored.
+In 16:9 or 9:16, set via `CLIP_SECONDS`, `CLIP_ASPECT` and `CLIP_MODEL` in `.env`. Hailuo 3 is the default: sharp, cheap, and it refuses very few prompts. Seedance 2.5 costs about four times as much as the default and has a strict content filter (prompts that resemble a brand, a broadcast, or a famous scene are refused, and so are photos of real people; a refusal is not charged, and the response carries a `retryUrl` that renders a reworded prompt without paying again). The rates derive from measured provider cost, so they move when a model's price moves. Current models and prices always come from the endpoint itself: `GET` it with no parameters for the offer list, or `curl -X POST` it with your prompt and no payment, and the 402 response quotes the exact price for what you asked. Only `prompt`, `seconds`, `aspectRatio`, `model`, `image_url` and `async` are read; any other field is refused with a 400 before payment, so nothing you send is silently ignored.
+
+`CLIP_SECONDS` and `CLIP_MODEL` are optional, and the script only sends them when they are set. Left unset, the endpoint renders its default: `minimax-h3` at 5 seconds.
+
+To animate your own image, set `CLIP_IMAGE_URL` to a public https JPEG, PNG or WebP of up to 10 MB. The script sends it as `image_url`, and the video starts from it, cropped to `CLIP_ASPECT`. Leave `CLIP_MODEL` unset and the cheapest model that takes an image at your length renders it: `wan-2.7` for 5 or 10 seconds, `kling-3.0` for 15, and `veo-3.1-lite` for 4, 6, 8 or no length, and the 402 quotes that model's price. Any model except `minimax-h3` can be named instead. The image is checked before the payment settles, so one that cannot be used costs nothing.
 
 Payments are EIP-3009 `transferWithAuthorization`, so the wallet needs USDC but no ETH for gas.
 
-One gotcha worth knowing: `@x402/fetch` ships with a default spend control that caps any single payment at $1, which silently rejects any clip priced above it (the 15-second default clip, and everything on Seedance). The script raises the cap to $5 via `spendControls: { maxAmountPerPayment: "$5" }`, which covers the largest clip while still bounding what one payment can ever spend.
+One gotcha worth knowing: `@x402/fetch` ships with a default spend control that caps any single payment at $1, which silently rejects many clips (the 15-second default clip, and most clips on the other models). The script raises the cap to $5 via `spendControls: { maxAmountPerPayment: "$5" }`, which covers the largest clip ($4.90) while still bounding what one payment can ever spend.
 
 ## How the flow works
 
-1. The script POSTs `{"prompt", "seconds", "aspectRatio", "model"}` to `https://www.trezalabs.com/api/x402/video`.
+1. The script POSTs `{"prompt", "aspectRatio"}`, plus `"seconds"`, `"model"` and `"image_url"` when `CLIP_SECONDS`, `CLIP_MODEL` and `CLIP_IMAGE_URL` are set, to `https://www.trezalabs.com/api/x402/video`.
 2. The server answers `402 Payment Required` with structured payment requirements: the exact price for that clip on that model, USDC on Base, and the address to pay.
 3. [`@x402/fetch`](https://www.npmjs.com/package/@x402/fetch) signs the payment with the wallet and retries the request. The payment verifies and settles on-chain before the render starts.
-4. The paid POST answers `202 Accepted` with a run id and a `statusUrl` carrying a signed claim ticket. The ticket is the proof of purchase, so persist it in a real integration.
-5. The script polls the `statusUrl` (free, the render is already paid for) until the video URL appears, then downloads the file.
+4. The paid POST answers `200` at once with an `X-Status-Url` header carrying a signed claim ticket, the proof of purchase (persist it in a real integration), sends a whitespace byte every 2 seconds while it waits, which JSON parsers ignore, and ends with one JSON object. When the render finishes within 45 seconds, `status` is `success` and the body carries the `video` URL; `error` or `partial` carries a `retryUrl` that renders again without paying twice.
+5. When the render takes longer, the body says `"status": "running"`, and the script polls the `statusUrl` (free, the render is already paid for) until it finishes. Then it downloads the file, using the `video` URL exactly as given.
 
 If you send more than a render ends up costing, the difference stays as balance keyed to your wallet and is spent by your next call.
 
