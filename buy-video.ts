@@ -28,6 +28,12 @@ import { ExactSvmScheme } from "@x402/svm/exact/client";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
 import bs58 from "bs58";
 
+// dotenv never overrides a variable the shell already has, even an empty one
+// (a key prompt answered with Enter leaves one behind), which would hide the
+// key in .env. An empty variable counts as unset.
+for (const name of ["PRIVATE_KEY", "SOLANA_PRIVATE_KEY"]) {
+  if (process.env[name] !== undefined && !process.env[name]!.trim()) delete process.env[name];
+}
 config();
 
 const ENDPOINT =
