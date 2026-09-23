@@ -19,22 +19,8 @@
  *   npm install
  *   npm run buy -- "a hedgehog wandering through a neon-lit alley at night"
  */
-import { config } from "dotenv";
 import { writeFile } from "node:fs/promises";
-import { privateKeyToAccount } from "viem/accounts";
-import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
-import { ExactEvmScheme } from "@x402/evm";
-import { ExactSvmScheme } from "@x402/svm/exact/client";
-import { createKeyPairSignerFromBytes } from "@solana/kit";
-import bs58 from "bs58";
-
-// dotenv never overrides a variable the shell already has, even an empty one
-// (a key prompt answered with Enter leaves one behind), which would hide the
-// key in .env. An empty variable counts as unset.
-for (const name of ["PRIVATE_KEY", "SOLANA_PRIVATE_KEY"]) {
-  if (process.env[name] !== undefined && !process.env[name]!.trim()) delete process.env[name];
-}
-config();
+import { chainName, fetchWithPayment } from "./pay.js";
 
 const ENDPOINT =
   process.env.X402_VIDEO_ENDPOINT ?? "https://www.trezalabs.com/api/x402/video";
@@ -63,40 +49,6 @@ const IMAGE_URL = process.env.CLIP_IMAGE_URL?.trim() || undefined;
 const prompt =
   process.argv.slice(2).join(" ") ||
   "a manta ray gliding over a sunlit coral reef, slow cinematic drift";
-
-// Pay on Base with PRIVATE_KEY, or on Solana with SOLANA_PRIVATE_KEY (the
-// base58 secret key a wallet like Phantom exports). The endpoint lists both;
-// registering only one chain makes the client pick that one.
-const evmKey = process.env.PRIVATE_KEY?.trim();
-const solanaKey = process.env.SOLANA_PRIVATE_KEY?.trim();
-if (!evmKey && !solanaKey) {
-  throw new Error(
-    "Set PRIVATE_KEY (a Base wallet) or SOLANA_PRIVATE_KEY (a Solana wallet) in .env, holding a few USDC. See .env.example."
-  );
-}
-const SOLANA_MAINNET = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" as const;
-
-// Neither chain needs gas money in the wallet. On Base the payment is an
-// EIP-3009 transferWithAuthorization; on Solana it is a USDC transfer the
-// facilitator co-signs as fee payer. Either way: USDC only.
-const schemes = solanaKey
-  ? [
-      {
-        network: SOLANA_MAINNET,
-        client: new ExactSvmScheme(await createKeyPairSignerFromBytes(bs58.decode(solanaKey)), {
-          ...(process.env.SOLANA_RPC_URL ? { rpcUrl: process.env.SOLANA_RPC_URL } : {}),
-        }),
-      },
-    ]
-  : [{ network: "eip155:8453" as const, client: new ExactEvmScheme(privateKeyToAccount(evmKey as `0x${string}`)) }];
-const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes,
-  // The SDK's default spend control caps payments at $1, which silently
-  // rejects many clips: the 15s default clip ($1.26) and most clips on the
-  // other models (up to $4.90). $5 covers every offer while still bounding
-  // what a bug in this script could ever spend in one payment.
-  spendControls: { maxAmountPerPayment: "$5" },
-});
 
 async function main() {
   console.log(
@@ -132,7 +84,7 @@ async function main() {
   // parser.
   const order = await res.json();
   console.log(
-    `Paid $${order.paidUsd} USDC on ${String(order.network).startsWith("solana:") ? "Solana" : "Base"} for ${order.seconds}s on ${order.model} (tx ${order.transaction}).`
+    `Paid $${order.paidUsd} USDC on ${chainName(order.network)} for ${order.seconds}s on ${order.model} (tx ${order.transaction}).`
   );
 
   // The render is taking longer than the wait: poll the claim ticket.

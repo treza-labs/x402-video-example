@@ -1,10 +1,13 @@
 {
   "name": "x402-video-example",
   "version": "1.0.0",
-  "description": "Buy an AI-generated video over x402: a wallet pays the 402 challenge in USDC on Base, no account or API key.",
+  "description": "Buy AI video, speech, music or images over x402: a wallet pays the 402 challenge in USDC on Base or Solana, no account or API key.",
   "type": "module",
   "scripts": {
-    "buy": "tsx buy-video.ts"
+    "buy": "tsx buy-video.ts",
+    "buy:speech": "tsx buy.ts speech",
+    "buy:music": "tsx buy.ts music",
+    "buy:image": "tsx buy.ts image"
   },
   "keywords": [
     "x402",
@@ -13,7 +16,10 @@
     "usdc",
     "base",
     "agent-payments",
-    "micropayments"
+    "micropayments",
+    "text-to-speech",
+    "music-generation",
+    "image-generation"
   ],
   "license": "MIT",
   "dependencies": {

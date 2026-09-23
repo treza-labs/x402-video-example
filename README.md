@@ -1,6 +1,6 @@
 # Buy an AI video with x402
 
-A minimal buyer script for [Treza's](https://www.trezalabs.com/x402) pay-per-video endpoint: POST a prompt, let your wallet pay the HTTP 402 challenge in USDC on Base or Solana, and download the finished video. No account, no API key, no signup. The payment is the only credential.
+A minimal buyer script for [Treza's](https://www.trezalabs.com/x402) pay-per-video endpoint: POST a prompt, let your wallet pay the HTTP 402 challenge in USDC on Base or Solana, and download the finished video. No account, no API key, no signup. The payment is the only credential. The same wallet also buys a voiceover, a music track or an image: see [Speech, music and images](#speech-music-and-images).
 
 ```
 npm install
@@ -54,6 +54,24 @@ One gotcha worth knowing: `@x402/fetch` ships with a default spend control that 
 5. When the render takes longer, the body says `"status": "running"`, and the script polls the `statusUrl` (free, the render is already paid for) until it finishes. Then it downloads the file, using the `video` URL exactly as given.
 
 If you send more than a render ends up costing, the difference stays as balance keyed to your wallet and is spent by your next call.
+
+## Speech, music and images
+
+`buy.ts` buys from Treza's other pay-per-call endpoints the same way, and saves the file next to it:
+
+```
+npm run buy:speech -- "Welcome back. Here is today's forecast."   # speech.mp3
+npm run buy:music -- "warm lo-fi hip hop, soft piano, 80 bpm"     # music.mp3
+npm run buy:image -- "a lighthouse on a sea cliff at golden hour" # image.png
+```
+
+| Endpoint | Sells | Price (USDC) |
+| -------- | ----- | ------------ |
+| `/api/x402/speech` | An ElevenLabs voiceover of up to 3,000 characters, 13 voices, Eleven v3 or Multilingual v2 | $0.42 per 1,000 characters, minimum $0.02 |
+| `/api/x402/music` | An original Google Lyria 3 track: a 30-second clip, or a full song with `"model": "lyria-3-pro"` | $0.06 clip, $0.12 song |
+| `/api/x402/image` | One image on Nano Banana (default), Nano Banana 2 or Pro, GPT Image 2, Seedream 5.0 Pro, FLUX.2 Pro or Recraft V4.1, square to 21:9, up to 4K | From $0.02, by model and setting |
+
+Put any other settings in `BUY_OPTIONS` as JSON, merged into the body, e.g. `BUY_OPTIONS='{"voice":"rachel"}'` for speech or `BUY_OPTIONS='{"model":"nano-banana-pro","resolution":"4K","aspectRatio":"16:9"}'` for an image. `GET` any endpoint with no parameters for its full menu, and read the exact price off its 402 before paying. These usually come back in a few seconds, inside the same response.
 
 ## Reading more
 
