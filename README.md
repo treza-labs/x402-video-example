@@ -79,7 +79,9 @@ Put any other settings in `BUY_OPTIONS` as JSON, merged into the body, e.g. `BUY
 
 ## Keeping the Bazaar listings alive
 
-The x402 Bazaar drops a listing that has had no paid call in 30 days. `npm run keepalive` makes one paid call per Treza endpoint on the cheapest thing each sells (about $1.49 for all six), from the wallet in `.env`. Name listings to do only those: `npm run keepalive -- clip short`.
+The x402 Bazaar drops a listing that has had no paid call in 30 days. `npm run keepalive` makes one paid call per Treza endpoint on the cheapest thing each sells (about $1.49 for all six). Name listings to do only those: `npm run keepalive -- clip short`.
+
+It always pays on Base, from `PRIVATE_KEY`, even when `.env` also holds a Solana key. The Bazaar is Coinbase's and counts only payments Coinbase's facilitator settles, and Treza settles Solana payments through Dexter's, so a Solana purchase would reset nothing. Any buy script can be pinned to one chain the same way with `PAY_CHAIN=base` or `PAY_CHAIN=solana`.
 
 ## Reading more
 

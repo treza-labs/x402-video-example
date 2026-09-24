@@ -4,8 +4,13 @@
  *
  * The Bazaar drops a listing with no paid call in 30 days, and Treza emails
  * when one is within a week of that. Run this then (or name only the listings
- * the email lists). It pays from the wallet in .env, like the buy scripts,
- * and buys, in total, about $1.49:
+ * the email lists).
+ *
+ * It always pays on Base, from PRIVATE_KEY, even when .env also holds a Solana
+ * key. The Bazaar is Coinbase's, and it only counts payments Coinbase's
+ * facilitator settles; Treza settles Solana payments with Dexter's, so a
+ * Solana call would be a real purchase that resets nothing. In total it buys
+ * about $1.49:
  *   video $0.42 (5s minimax-h3), speech $0.02, music $0.06, image $0.02,
  *   clip ~$0.05 (a two-minute NASA video), short $0.87 (stills).
  *
@@ -14,6 +19,7 @@
  *   npm run keepalive -- clip short   # just these
  */
 import { spawnSync } from "node:child_process";
+import { config } from "dotenv";
 
 const CALLS: Record<string, { script: string; args: string[]; env?: Record<string, string> }> = {
   video: { script: "buy-video.ts", args: ["a manta ray gliding over a sunlit coral reef, slow cinematic drift"] },
@@ -29,13 +35,21 @@ const wanted = process.argv.slice(2);
 const unknown = wanted.filter((w) => !CALLS[w]);
 if (unknown.length) throw new Error(`Unknown listing(s): ${unknown.join(", ")}. Choose from ${Object.keys(CALLS).join(", ")}.`);
 
+// Fail before the first purchase, not after five of them went through.
+config();
+if (!process.env.PRIVATE_KEY?.trim()) {
+  throw new Error(
+    "keepalive pays on Base, which is the only chain the Bazaar counts: add PRIVATE_KEY (a Base wallet holding a few USDC) to .env."
+  );
+}
+
 const failed: string[] = [];
 for (const name of wanted.length ? wanted : Object.keys(CALLS)) {
   const call = CALLS[name];
   console.log(`\n== ${name}`);
   const run = spawnSync("npx", ["tsx", call.script, ...call.args], {
     stdio: "inherit",
-    env: { ...process.env, ...(call.env ?? {}) },
+    env: { ...process.env, ...(call.env ?? {}), PAY_CHAIN: "base" },
   });
   if (run.status !== 0) failed.push(name);
 }

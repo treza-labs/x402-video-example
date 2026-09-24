@@ -19,8 +19,18 @@ for (const name of ["PRIVATE_KEY", "SOLANA_PRIVATE_KEY"]) {
 }
 config();
 
-const evmKey = process.env.PRIVATE_KEY?.trim();
-const solanaKey = process.env.SOLANA_PRIVATE_KEY?.trim();
+// PAY_CHAIN=base or PAY_CHAIN=solana pays from that chain's wallet only, even
+// when .env holds both keys. The keepalive sets base (see keepalive.ts).
+const chain = process.env.PAY_CHAIN?.trim().toLowerCase();
+if (chain && chain !== "base" && chain !== "solana") throw new Error(`PAY_CHAIN must be "base" or "solana", not "${chain}".`);
+const evmKey = chain === "solana" ? undefined : process.env.PRIVATE_KEY?.trim();
+const solanaKey = chain === "base" ? undefined : process.env.SOLANA_PRIVATE_KEY?.trim();
+if (chain === "base" && !evmKey) {
+  throw new Error("PAY_CHAIN=base needs PRIVATE_KEY in .env: a Base wallet holding a few USDC.");
+}
+if (chain === "solana" && !solanaKey) {
+  throw new Error("PAY_CHAIN=solana needs SOLANA_PRIVATE_KEY in .env: a Solana wallet holding a few USDC.");
+}
 if (!evmKey && !solanaKey) {
   throw new Error(
     "Set PRIVATE_KEY (a Base wallet) or SOLANA_PRIVATE_KEY (a Solana wallet) in .env, holding a few USDC. See .env.example."
