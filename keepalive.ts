@@ -8,7 +8,7 @@
  *
  * It always pays on Base, from PRIVATE_KEY, even when .env also holds a Solana
  * key. The Bazaar is Coinbase's, and it only counts payments Coinbase's
- * facilitator settles; Treza settles Solana payments with Dexter's, so a
+ * facilitator settles; Treza settles Solana payments with PayAI's, so a
  * Solana call would be a real purchase that resets nothing. In total it buys
  * about $1.49:
  *   video $0.42 (5s minimax-h3), speech $0.02, music $0.06, image $0.02,
