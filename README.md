@@ -77,6 +77,10 @@ npm run buy:short -- "how octopuses taste the world with their arms" # short.mp4
 
 Put any other settings in `BUY_OPTIONS` as JSON, merged into the body, e.g. `BUY_OPTIONS='{"voice":"rachel"}'` for speech or `BUY_OPTIONS='{"model":"nano-banana-pro","resolution":"4K","aspectRatio":"16:9"}'` for an image. `GET` any endpoint with no parameters for its full menu, and read the exact price off its 402 before paying. Speech, music and images usually come back in a few seconds, inside the same response; clips and shorts take a few minutes, and the script polls the status URL until they are ready.
 
+## Keeping the Bazaar listings alive
+
+The x402 Bazaar drops a listing that has had no paid call in 30 days. `npm run keepalive` makes one paid call per Treza endpoint on the cheapest thing each sells (about $1.49 for all six), from the wallet in `.env`. Name listings to do only those: `npm run keepalive -- clip short`.
+
 ## Reading more
 
 - [Live demo with a settled transaction](https://www.trezalabs.com/x402)

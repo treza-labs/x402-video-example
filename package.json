@@ -9,7 +9,8 @@
     "buy:music": "tsx buy.ts music",
     "buy:image": "tsx buy.ts image",
     "buy:clip": "tsx buy.ts clip",
-    "buy:short": "tsx buy.ts short"
+    "buy:short": "tsx buy.ts short",
+    "keepalive": "tsx keepalive.ts"
   },
   "keywords": [
     "x402",
