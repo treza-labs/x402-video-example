@@ -1,3 +1,11 @@
 node_modules/
 .env
 video.mp4
+
+# Editor swap and backup files: vim's .env.swp holds .env's contents, keys included.
+*.swp
+*.swo
+*~
+# Any other env file (.env.local, .env.backup); the template stays tracked.
+.env.*
+!.env.example
