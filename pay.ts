@@ -38,6 +38,15 @@ if (!evmKey && !solanaKey) {
 }
 const SOLANA_MAINNET = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" as const;
 
+/** A Base key with or without its 0x: MetaMask and Phantom both export it without. */
+function evmPrivateKey(raw: string): `0x${string}` {
+  const hex = raw.replace(/^0x/i, "");
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+    throw new Error("PRIVATE_KEY must be a Base (Ethereum) private key: 64 hex characters, with or without 0x.");
+  }
+  return `0x${hex}`;
+}
+
 // Neither chain needs gas money in the wallet. On Base the payment is an
 // EIP-3009 transferWithAuthorization; on Solana it is a USDC transfer the
 // facilitator co-signs as fee payer. Either way: USDC only. The endpoint lists
@@ -51,7 +60,7 @@ const schemes = solanaKey
         }),
       },
     ]
-  : [{ network: "eip155:8453" as const, client: new ExactEvmScheme(privateKeyToAccount(evmKey as `0x${string}`)) }];
+  : [{ network: "eip155:8453" as const, client: new ExactEvmScheme(privateKeyToAccount(evmPrivateKey(evmKey!))) }];
 
 export const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
   schemes,
