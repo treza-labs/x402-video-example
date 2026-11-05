@@ -45,6 +45,15 @@ const MODEL = process.env.CLIP_MODEL?.trim() || undefined;
 // unset and the cheapest model that takes an image at CLIP_SECONDS renders
 // it: wan-2.7 for 5 or 10, kling-3.0 for 15, veo-3.1-lite otherwise.
 const IMAGE_URL = process.env.CLIP_IMAGE_URL?.trim() || undefined;
+// Optional reference images, comma-separated: 1 to 4 public https images whose
+// character, product or place is kept in a new shot (refer to them in the
+// prompt as image 1, image 2...). Taken by wan-2.7 and seedance-2.5; leave
+// CLIP_MODEL unset and the cheapest of them at CLIP_SECONDS renders it. Not
+// with CLIP_IMAGE_URL.
+const REFERENCE_URLS = (process.env.CLIP_REFERENCE_URLS ?? "")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
 
 const prompt =
   process.argv.slice(2).join(" ") ||
@@ -53,7 +62,7 @@ const prompt =
 async function main() {
   console.log(
     `Buying a ${SECONDS ? `${SECONDS}s` : "default-length"} ${ASPECT} clip on ${MODEL ?? "the default model"}${
-      IMAGE_URL ? ` from ${IMAGE_URL}` : ""
+      IMAGE_URL ? ` from ${IMAGE_URL}` : REFERENCE_URLS.length ? ` with ${REFERENCE_URLS.length} reference image(s)` : ""
     } for: "${prompt}"`
   );
 
@@ -66,6 +75,7 @@ async function main() {
       ...(SECONDS !== undefined ? { seconds: SECONDS } : {}),
       ...(MODEL ? { model: MODEL } : {}),
       ...(IMAGE_URL ? { image_url: IMAGE_URL } : {}),
+      ...(REFERENCE_URLS.length ? { reference_image_urls: REFERENCE_URLS } : {}),
     }),
   });
   if (!res.ok) {
