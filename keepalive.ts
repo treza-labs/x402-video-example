@@ -10,9 +10,10 @@
  * key. The Bazaar is Coinbase's, and it only counts payments Coinbase's
  * facilitator settles; Treza settles Solana payments with PayAI's, so a
  * Solana call would be a real purchase that resets nothing. In total it buys
- * about $1.49:
- *   video $0.42 (5s minimax-h3), speech $0.02, music $0.06, image $0.02,
- *   clip ~$0.05 (a two-minute NASA video), short $0.87 (stills).
+ * about $1.49 ($1.52 from 2027-02-10):
+ *   video $0.42 (5s minimax-h3), speech $0.02, music $0.06, image $0.02
+ *   ($0.05 from 2027-02-10, see CHEAPEST_IMAGE), clip ~$0.05 (a two-minute
+ *   NASA video), short $0.87 (stills).
  *
  * Usage:
  *   npm run keepalive                 # all six
@@ -21,11 +22,19 @@
 import { spawnSync } from "node:child_process";
 import { config } from "dotenv";
 
+// The cheapest image is GPT Image 2 at low quality, $0.02, until OpenAI shuts
+// it down on 2027-02-10; from that day Treza refuses it before payment. Then
+// Recraft V4.1 at $0.05 is the cheapest, level with gpt-image-2.6 at low, and
+// unlike that one it is on sale on both sides of the date.
+const GPT_IMAGE_2_SHUTDOWN = Date.parse("2027-02-10T00:00:00Z");
+const CHEAPEST_IMAGE =
+  Date.now() < GPT_IMAGE_2_SHUTDOWN ? '{"model":"gpt-image-2","quality":"low"}' : '{"model":"recraft-v4.1"}';
+
 const CALLS: Record<string, { script: string; args: string[]; env?: Record<string, string> }> = {
   video: { script: "buy-video.ts", args: ["a manta ray gliding over a sunlit coral reef, slow cinematic drift"] },
   speech: { script: "buy.ts", args: ["speech", "Hello from Treza."] },
   music: { script: "buy.ts", args: ["music", "calm ambient pad, soft piano, slow"] },
-  image: { script: "buy.ts", args: ["image", "a lighthouse at dusk, simple flat illustration"], env: { BUY_OPTIONS: '{"model":"gpt-image-2","quality":"low"}' } },
+  image: { script: "buy.ts", args: ["image", "a lighthouse at dusk, simple flat illustration"], env: { BUY_OPTIONS: CHEAPEST_IMAGE } },
   // NASA Johnson: a US government work, in the public domain, two minutes long.
   clip: { script: "buy.ts", args: ["clip", "https://www.youtube.com/watch?v=HncCaFHwkEY"] },
   short: { script: "buy.ts", args: ["short", "why the sky is blue"], env: { BUY_OPTIONS: '{"style":"stills"}' } },
