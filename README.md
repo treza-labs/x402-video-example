@@ -10,6 +10,12 @@ npm run buy -- "a hedgehog wandering through a neon-lit alley at night"
 
 The paid request returns the video in the same response when the render finishes within 45 seconds; otherwise the script polls the status URL it got back until the video is ready. Either way, when the script exits there is a `video.mp4` in the working directory.
 
+## What Treza makes
+
+![Four short clips made with Treza: a red hover car racing through a neon city, an astronaut walking over a Martian dune at sunset, an orchid mantis on a leaf, and espresso pouring into a cup](https://raw.githubusercontent.com/treza-labs/treza-labs/main/assets/treza-demo.gif)
+
+These clips were made with [Treza](https://www.trezalabs.com), and the [x402 page](https://www.trezalabs.com/x402) explains buying a video with a wallet.
+
 ## What it costs
 
 Price scales with clip length and the model, and is quoted per request by the 402 challenge itself, before any money moves. Each model sells its own lengths:
