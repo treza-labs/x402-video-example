@@ -23,9 +23,9 @@ Price scales with clip length and the model, and is quoted per request by the 40
 | `CLIP_MODEL` | Prices (USDC) |
 | ------------ | ------------- |
 | `minimax-h3` (default) | 5 s $0.42, 10 s $0.84, 15 s $1.26 |
-| `veo-3.1-lite` | 4 s $0.45, 6 s $0.68, 8 s $0.90 |
+| `veo-3.1-lite` | 4 s $0.28, 6 s $0.42, 8 s $0.56 |
 | `wan-2.7` | 5 s $0.70, 10 s $1.40 |
-| `veo-3.1-fast` | 4 s $0.68, 6 s $1.01, 8 s $1.35 |
+| `veo-3.1-fast` | 4 s $0.56, 6 s $0.84, 8 s $1.12 |
 | `kling-3.0` | 5 s $0.89, 10 s $1.77, 15 s $2.65 |
 | `kling-3.0-pro` | 5 s $1.18, 10 s $2.36, 15 s $3.53 |
 | `seedance-2.5` | 5 s $1.64, 10 s $3.27, 15 s $4.90 |
