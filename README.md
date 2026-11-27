@@ -24,10 +24,7 @@ Price scales with clip length and the model, and is quoted per request by the 40
 | ------------ | ------------- |
 | `minimax-h3` (default) | 5 s $0.42, 10 s $0.84, 15 s $1.26 |
 | `veo-3.1-lite` | 4 s $0.28, 6 s $0.42, 8 s $0.56 |
-| `wan-2.7` | 5 s $0.70, 10 s $1.40 |
 | `veo-3.1-fast` | 4 s $0.56, 6 s $0.84, 8 s $1.12 |
-| `kling-3.0` | 5 s $0.89, 10 s $1.77, 15 s $2.65 |
-| `kling-3.0-pro` | 5 s $1.18, 10 s $2.36, 15 s $3.53 |
 | `seedance-2.5` | 5 s $1.64, 10 s $3.27, 15 s $4.90 |
 | `veo-3.1` | 4 s $2.24, 6 s $3.36, 8 s $4.48 |
 
@@ -35,9 +32,9 @@ In 16:9 or 9:16, set via `CLIP_SECONDS`, `CLIP_ASPECT` and `CLIP_MODEL` in `.env
 
 `CLIP_SECONDS` and `CLIP_MODEL` are optional, and the script only sends them when they are set. Left unset, the endpoint renders its default: `minimax-h3` at 5 seconds.
 
-To animate your own image, set `CLIP_IMAGE_URL` to a public https JPEG, PNG or WebP of up to 10 MB. The script sends it as `image_url`, and the video starts from it, cropped to `CLIP_ASPECT`. Leave `CLIP_MODEL` unset and the cheapest model that takes an image at your length renders it: `wan-2.7` for 5 or 10 seconds, `kling-3.0` for 15, and `veo-3.1-lite` for 4, 6, 8 or no length, and the 402 quotes that model's price. Any model except `minimax-h3` can be named instead. The image is checked before the payment settles, so one that cannot be used costs nothing.
+To animate your own image, set `CLIP_IMAGE_URL` to a public https JPEG, PNG or WebP of up to 10 MB. The script sends it as `image_url`, and the video starts from it, cropped to `CLIP_ASPECT`. Leave `CLIP_MODEL` unset and the cheapest model that takes an image at your length renders it: `seedance-2.5` for 5, 10 or 15 seconds, and `veo-3.1-lite` for 4, 6, 8 or no length, and the 402 quotes that model's price. Any model except `minimax-h3` can be named instead. The image is checked before the payment settles, so one that cannot be used costs nothing.
 
-To keep a character, product or place the same in a new shot instead, set `CLIP_REFERENCE_URLS` to 1 to 4 such images, comma-separated, and refer to them in the prompt as image 1, image 2 and so on. The script sends them as `reference_image_urls`. They are not a first frame: the clip is a new scene with their subject in it. `wan-2.7` and `seedance-2.5` take them, at the same price as text-to-video; leave `CLIP_MODEL` unset and the cheapest of the two at your length renders it (`wan-2.7` for 5 or 10 seconds, `seedance-2.5` for 15). They cannot be combined with `CLIP_IMAGE_URL`, and like a first frame they are checked before the payment settles.
+To keep a character, product or place the same in a new shot instead, set `CLIP_REFERENCE_URLS` to 1 to 4 such images, comma-separated, and refer to them in the prompt as image 1, image 2 and so on. The script sends them as `reference_image_urls`. They are not a first frame: the clip is a new scene with their subject in it. Only `seedance-2.5` takes them (5, 10 or 15 seconds), at the same price as text-to-video, and it renders them when `CLIP_MODEL` is unset. They cannot be combined with `CLIP_IMAGE_URL`, and like a first frame they are checked before the payment settles.
 
 ## Paying on Base or Solana
 
@@ -77,13 +74,13 @@ npm run buy:short -- "how octopuses taste the world with their arms" # short.mp4
 
 | Endpoint | Sells | Price (USDC) |
 | -------- | ----- | ------------ |
-| `/api/x402/speech` | An ElevenLabs voiceover of up to 3,000 characters, 13 voices, Eleven v3 or Multilingual v2 | $0.42 per 1,000 characters, minimum $0.02 |
+| `/api/x402/speech` | An ElevenLabs voiceover of up to 3,000 characters, 50 voices, Eleven v3 or Multilingual v2 | $0.42 per 1,000 characters, minimum $0.02 |
 | `/api/x402/music` | An original Google Lyria 3 track: a 30-second clip, or a full song with `"model": "lyria-3-pro"` | $0.06 clip, $0.12 song |
-| `/api/x402/image` | One image on Nano Banana (default), Nano Banana 2 or Pro, GPT Image 2, Seedream 5.0 Pro, FLUX.2 Pro or Recraft V4.1, square to 21:9, up to 4K | From $0.02, by model and setting |
+| `/api/x402/image` | One image on Nano Banana (default), Nano Banana 2 or Pro, GPT Image 2.6 or 2, Seedream 5.0 Pro, FLUX.2 Pro or Recraft V4.1, square to 21:9, up to 4K | From $0.02, by model and setting |
 | `/api/x402/clip` | A YouTube video's most shareable 30 to 60 seconds as a captioned clip, reframed on the speaker (9:16 by default) | By the source's length: about $0.12 for 12 minutes, $0.45 an hour |
 | `/api/x402/short` | A finished 30-second narrated vertical short from a topic: script, four scenes, narrator, music, captions | $0.87 as stills (`"style": "stills"`), $3.22 animated |
 
-Put any other settings in `BUY_OPTIONS` as JSON, merged into the body, e.g. `BUY_OPTIONS='{"voice":"rachel"}'` for speech or `BUY_OPTIONS='{"model":"nano-banana-pro","resolution":"4K","aspectRatio":"16:9"}'` for an image. `GET` any endpoint with no parameters for its full menu, and read the exact price off its 402 before paying. Speech, music and images usually come back in a few seconds, inside the same response; clips and shorts take a few minutes, and the script polls the status URL until they are ready.
+Put any other settings in `BUY_OPTIONS` as JSON, merged into the body, e.g. `BUY_OPTIONS='{"voice":"rachel"}'` for speech or `BUY_OPTIONS='{"model":"nano-banana-2","resolution":"4K","aspectRatio":"16:9"}'` for an image. `GET` any endpoint with no parameters for its full menu, and read the exact price off its 402 before paying. Speech, music and images usually come back in a few seconds, inside the same response; clips and shorts take a few minutes, and the script polls the status URL until they are ready.
 
 ## Keeping the Bazaar listings alive
 

@@ -13,7 +13,7 @@
  * Optional settings go in BUY_OPTIONS as JSON, merged into the body:
  *   BUY_OPTIONS='{"voice":"rachel"}'                          speech
  *   BUY_OPTIONS='{"model":"lyria-3-pro"}'                     music (a full song)
- *   BUY_OPTIONS='{"model":"nano-banana-pro","resolution":"4K","aspectRatio":"16:9"}'   image
+ *   BUY_OPTIONS='{"model":"nano-banana-2","resolution":"4K","aspectRatio":"16:9"}'   image
  *   BUY_OPTIONS='{"aspectRatio":"1:1"}'                       clip
  *   BUY_OPTIONS='{"style":"stills","voice":"rachel"}'         short
  * GET the endpoint with no parameters for every option and price.

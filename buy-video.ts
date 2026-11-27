@@ -28,28 +28,26 @@ const ENDPOINT =
 // defaults: minimax-h3 at its shortest length, or, with CLIP_IMAGE_URL, the
 // cheapest model that takes an image at the length you ask for.
 //
-// Clip length. Each model sells its own: 5, 10 or 15 on minimax-h3,
-// kling-3.0, kling-3.0-pro and seedance-2.5; 4, 6 or 8 on the three Veo
-// models; 5 or 10 on wan-2.7.
+// Clip length. Each model sells its own: 5, 10 or 15 on minimax-h3 and
+// seedance-2.5; 4, 6 or 8 on the three Veo models.
 const SECONDS = process.env.CLIP_SECONDS?.trim()
   ? Number(process.env.CLIP_SECONDS)
   : undefined;
 const ASPECT = process.env.CLIP_ASPECT ?? "16:9"; // 16:9 or 9:16
 // minimax-h3 (the default: cheap, sharp, rarely refuses, text only),
-// veo-3.1-lite, wan-2.7, veo-3.1-fast, kling-3.0, kling-3.0-pro, seedance-2.5
-// or veo-3.1. GET the endpoint with no parameters for what each one is for
-// and its prices.
+// veo-3.1-lite, veo-3.1-fast, seedance-2.5 or veo-3.1. GET the endpoint with
+// no parameters for what each one is for and its prices.
 const MODEL = process.env.CLIP_MODEL?.trim() || undefined;
 // Optional first frame: a public https JPEG, PNG or WebP up to 10 MB, cropped
 // to CLIP_ASPECT. Every model except minimax-h3 takes one. Leave CLIP_MODEL
 // unset and the cheapest model that takes an image at CLIP_SECONDS renders
-// it: wan-2.7 for 5 or 10, kling-3.0 for 15, veo-3.1-lite otherwise.
+// it: seedance-2.5 for 5, 10 or 15, veo-3.1-lite otherwise.
 const IMAGE_URL = process.env.CLIP_IMAGE_URL?.trim() || undefined;
 // Optional reference images, comma-separated: 1 to 4 public https images whose
 // character, product or place is kept in a new shot (refer to them in the
-// prompt as image 1, image 2...). Taken by wan-2.7 and seedance-2.5; leave
-// CLIP_MODEL unset and the cheapest of them at CLIP_SECONDS renders it. Not
-// with CLIP_IMAGE_URL.
+// prompt as image 1, image 2...). Only seedance-2.5 takes them (5, 10 or 15
+// seconds), and it renders them when CLIP_MODEL is unset. Not with
+// CLIP_IMAGE_URL.
 const REFERENCE_URLS = (process.env.CLIP_REFERENCE_URLS ?? "")
   .split(",")
   .map((u) => u.trim())
